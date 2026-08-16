@@ -114,8 +114,21 @@ blocks with two capture dates is how you show that the range moved.
 python3 tests/test_archive.py
 ```
 
-No network. Everything under test is a pure function, and the assertions are shaped around what
-has actually gone wrong:
+No network, no configuration, no services. 46 assertions.
+
+Two layers. Pure functions, and the four platform parsers driven end to end against synthetic
+payloads in `tests/fixtures/`. Those fixtures are invented but **structurally** accurate, so you
+can read what each API really returns without fetching anything:
+
+| fixture | the case it protects |
+|---|---|
+| `greenhouse.json` | the description arrives entity-escaped, sometimes twice |
+| `greenhouse-embed.json` | the embedded board: no token in the URL, only `gh_jid` |
+| `ashby.json` | structured compensation, which must beat the body scan |
+| `lever.json` | the body is split across three fields; reading one truncates it |
+| `workday.json` | pay rendered as markup with the label in a separate element |
+
+The assertions are shaped around what has actually gone wrong:
 
 - **ATS detection**, including the embedded-board case where the board token is absent from the
   URL and only `gh_jid` survives.

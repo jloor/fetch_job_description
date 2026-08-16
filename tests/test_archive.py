@@ -132,6 +132,76 @@ check("a pay range buried in markup is still found",
 check("the comp row survives the empty-row filter",
       "Comp as stated" in fj.block({"ats": "x", "body": "nothing here"}, "http://x"), True)
 
+# ── the four platform parsers, against synthetic payloads ─────────────────────
+# ⭐ WHY THESE EXIST. Everything above tests a pure function. These exercise the FETCH path
+# end to end with the network stubbed, which is the half a reader cannot otherwise see:
+# what each API actually returns and what the tool makes of it. The fixtures are invented
+# but structurally accurate, because a fixture that does not match reality tests a parser
+# nobody has.
+import json as _json, pathlib as _pl
+_FIX = _pl.Path(__file__).resolve().parent / "fixtures"
+
+
+def _stub(payload):
+    """Replace the module's HTTP with a fixed body. Nothing here touches the network."""
+    fj.get = lambda url, post=None: payload
+
+
+print("\nplatform parsers, network stubbed:")
+
+# GREENHOUSE — the description arrives entity-escaped. Strip before unescape and the markup
+# survives as literal words, which is the bug that motivated detag's ordering.
+_stub((_FIX / "greenhouse.json").read_text())
+_g = fj.greenhouse("https://job-boards.greenhouse.io/northwind/jobs/1234567")
+check("greenhouse: parsed", _g["ats"], "Greenhouse")
+check("greenhouse: title", _g["title"], "Support Engineer")
+check("greenhouse: location", _g["location"], "Remote - US")
+check("greenhouse: escaped HTML became readable text",
+      "Own tier-2 cases end to end" in _g["body"], True)
+check("greenhouse: and no markup survived as words",
+      "&lt;" in _g["body"] or "<p>" in _g["body"], False)
+check("greenhouse: pay recovered from the prose",
+      fj.body_comp(_g["body"])[0], "$95,000 - $120,000")
+
+# The EMBEDDED BOARD: no token in the URL, only gh_jid identifies the posting.
+check("embedded board is detected as Greenhouse",
+      fj.detect("https://careers.contoso.example/jobs?gh_jid=7654321"), "Greenhouse")
+_stub((_FIX / "greenhouse-embed.json").read_text())
+_e = fj.greenhouse("https://careers.contoso.example/jobs?gh_jid=7654321")
+check("embedded board: parsed without a board token", _e["title"],
+      "Implementation Consultant")
+
+# ASHBY returns the whole board; the posting is matched by the UUID inside jobUrl.
+_stub((_FIX / "ashby.json").read_text())
+_a = fj.ashby("https://jobs.ashbyhq.com/globex/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+check("ashby: the RIGHT posting is picked from the board", _a["title"],
+      "Product Support Engineer")
+check("ashby: structured compensation is read", _a["comp"],
+      "$110,000 - $140,000 • Offers Equity")
+check("ashby: isRemote survives", _a["remote"], True)
+# ⚠️ A structured field must WIN over anything the body scan finds.
+check("ashby: the structured field beats the body scan",
+      fj._comp_row(_a), "$110,000 - $140,000 • Offers Equity")
+
+# LEVER splits the posting across three fields. Reading only `description` truncates it.
+_stub((_FIX / "lever.json").read_text())
+_l = fj.lever("https://jobs.lever.co/initech/11111111-2222-3333-4444-555555555555")
+check("lever: parsed", _l["title"], "Technical Account Manager")
+check("lever: the lists array is appended, not dropped",
+      "Own a portfolio of named accounts" in _l["body"], True)
+check("lever: the additional block is appended too",
+      "$130,000" in _l["body"], True)
+check("lever: pay found in the appended block",
+      fj.body_comp(_l["body"])[0], "$130,000 - $160,000")
+
+# WORKDAY nests under jobPostingInfo and renders pay as markup with the label elsewhere.
+_stub((_FIX / "workday.json").read_text())
+_w = fj.workday("https://umbrella.wd1.myworkdayjobs.com/careers/job/New-York/Deployment-Engineer_REQ-00042")
+check("workday: unwrapped from jobPostingInfo", _w["title"], "Deployment Engineer")
+check("workday: req id read", _w["req"], "REQ-00042")
+check("workday: pay range buried in markup is still found",
+      fj.body_comp(_w["body"])[0], "$120,000 - $150,000")
+
 print()
 if failures:
     print(f"{len(failures)} FAILED")

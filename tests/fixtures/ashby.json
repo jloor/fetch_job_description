@@ -1,0 +1,22 @@
+{
+ "jobs": [
+  {
+   "title": "Product Support Engineer",
+   "jobUrl": "https://jobs.ashbyhq.com/globex/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+   "applyUrl": "https://jobs.ashbyhq.com/globex/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/application",
+   "location": "Remote - US",
+   "isRemote": true,
+   "publishedAt": "2026-08-01T00:00:00Z",
+   "compensation": {
+    "compensationTierSummary": "$110,000 - $140,000 \u2022 Offers Equity"
+   },
+   "descriptionHtml": "<p>Globex needs a Product Support Engineer.</p><ul><li>Diagnose API and integration faults</li></ul>"
+  },
+  {
+   "title": "Some Other Role",
+   "jobUrl": "https://jobs.ashbyhq.com/globex/ffffffff-0000-1111-2222-333333333333",
+   "location": "Remote",
+   "descriptionHtml": "<p>Not the one being fetched.</p>"
+  }
+ ]
+}
