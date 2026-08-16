@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+# ⚠️ pip install . writes these into the working tree. They were committed once already.
+build/
+dist/
+*.egg-info/

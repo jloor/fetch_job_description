@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fetch-job-description"
+version = "0.1.0"
+description = "Keep a job posting exactly as it was when you applied."
+readme = "README.md"
+license = { text = "MIT" }
+# No dependencies, deliberately. A tool whose job is to still work in two years should not
+# be able to rot because a package it never needed changed.
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+fetch-job-description = "fetch_job_description.archive:main"
+
+[tool.setuptools]
+packages = ["fetch_job_description"]
