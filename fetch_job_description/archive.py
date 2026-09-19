@@ -257,6 +257,19 @@ def fetch(url):
 # captures "$125,000," and the trailing punctuation lands in the archive.
 _AMOUNT = r"\$\s?\d(?:[\d,]*\d)?(?:\.\d+)?\s*[KkMm]?"
 _RANGE = re.compile(rf"({_AMOUNT})\s*(?:-|–|—|to|and)\s*({_AMOUNT})")
+
+# 🚨 A BAND WITHOUT A DOLLAR SIGN IS STILL A BAND. Businessolver, read on 2026-09-19:
+# "The pay range for this position is 67K to 105K per year". The posting was carried as
+# NONE STATED, which is a different and much more interesting claim than 67K.
+# ⚠️ Narrow on purpose: a bare integer in a posting is usually not money ("7+ years",
+# "2,000 clients", "1998"), so only a K suffix or explicit comma-thousands counts, and only
+# inside a sentence that already mentions pay. Both guards are needed: one real posting
+# says "$100 billion in charitable giving" and "a $140 million growth investment" in prose.
+_BARE = r"\d{2,3}\s?[Kk]\b|\d{2,3},\d{3}\b"
+_BARE_RANGE = re.compile(rf"({_BARE})\s*(?:-|–|—|to|and)\s*({_BARE})")
+_SINGLE = re.compile(
+    rf"({_AMOUNT}|{_BARE})\s*(?:per year|per annum|annually|annualized|/\s?yr|a year)"
+    rf"|(?:salary|base pay|pay|compensation)\s*(?:is|of|:)\s*({_AMOUNT}|{_BARE})", re.I)
 _PAY_WORDS = re.compile(
     r"salary|compensation|pay range|pay band|base pay|base range|hourly|per hour|"
     r"per year|per annum|annually|annualized|OTE|on[- ]target earnings|"
@@ -294,7 +307,9 @@ def body_comp(body):
     for sentence in re.split(r"(?<=[.!?])\s+|\n+", body):
         if not _PAY_WORDS.search(sentence):
             continue
-        m = _RANGE.search(sentence)
+        # ⚠️ ORDER MATTERS. The priced pattern runs first, so "$67,000 to $105,000" can
+        # never be read as a bare "67 to 105" by the looser one.
+        m = _RANGE.search(sentence) or _BARE_RANGE.search(sentence)
         if not m:
             continue
         lo, hi = _to_number(m.group(1)), _to_number(m.group(2))
@@ -336,6 +351,29 @@ def body_comp(body):
             continue
         ctx = flat[max(0, m.start() - 160):m.end() + 40]
         return f"{m.group(1).strip()} - {m.group(2).strip()}", ctx.strip()[:300]
+
+    # ⭐ THIRD PASS: ONE NUMBER, NOT TWO. Feathr states "$55,000 annually, and up to a 10%
+    # bonus potential": a single figure, no range, and the posting was carried as NONE
+    # STATED. It is last so that any real range wins first, and it only reads a number that
+    # sits directly beside the words for a period, so a sentence mentioning compensation
+    # and some unrelated figure cannot become a band.
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", body):
+        if not _PAY_WORDS.search(sentence):
+            continue
+        m = _SINGLE.search(sentence)
+        if not m:
+            continue
+        tok = m.group(1) or m.group(2)
+        val = _to_number(tok)
+        if val is None:
+            continue
+        hourly = bool(re.search(r"hourly|per hour|/\s?hr|an hour", sentence, re.I))
+        ok = (10 <= val <= 500) if hourly else (15_000 <= val <= 2_000_000)
+        if not ok:
+            continue
+        # 📌 Written as a range whose ends are equal, because that is what the employer
+        # said: one number, not a band collapsed from two.
+        return f"{tok.strip()} - {tok.strip()}", " ".join(sentence.split())[:300]
     return None, None
 
 # ---------------------------------------------------------------- output
