@@ -259,7 +259,9 @@ _AMOUNT = r"\$\s?\d(?:[\d,]*\d)?(?:\.\d+)?\s*[KkMm]?"
 # 🚨 A unit after the FIRST figure hid the range, and the single-figure pass then archived a
 # wrong band: "$140,000/yr - $150,000/yr" became "$140,000 - $140,000" (Global-e, 2026-10-09).
 # The unit is allowed between the figures and never captured. The engine carries the same line.
-_UNIT = r"(?:\s?/\s?(?:yr|year|hr|hour|annum))?"
+# ⚠️ Any case: "$110,000.00/Yr - $145,000.00/Yr" (Chugach) stayed a single figure while the
+# unit was lower-case only.
+_UNIT = r"(?:\s?/\s?(?i:yr|year|hr|hour|annum))?"
 _RANGE = re.compile(rf"({_AMOUNT}){_UNIT}\s*(?:-|–|—|to|and)\s*({_AMOUNT})")
 
 # 🚨 A BAND WITHOUT A DOLLAR SIGN IS STILL A BAND. Businessolver, read on 2026-09-19:
