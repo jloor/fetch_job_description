@@ -256,7 +256,11 @@ def fetch(url):
 # ⚠️ Must not end on a comma. "$125,000, as well as stock options" otherwise
 # captures "$125,000," and the trailing punctuation lands in the archive.
 _AMOUNT = r"\$\s?\d(?:[\d,]*\d)?(?:\.\d+)?\s*[KkMm]?"
-_RANGE = re.compile(rf"({_AMOUNT})\s*(?:-|–|—|to|and)\s*({_AMOUNT})")
+# 🚨 A unit after the FIRST figure hid the range, and the single-figure pass then archived a
+# wrong band: "$140,000/yr - $150,000/yr" became "$140,000 - $140,000" (Global-e, 2026-10-09).
+# The unit is allowed between the figures and never captured. The engine carries the same line.
+_UNIT = r"(?:\s?/\s?(?:yr|year|hr|hour|annum))?"
+_RANGE = re.compile(rf"({_AMOUNT}){_UNIT}\s*(?:-|–|—|to|and)\s*({_AMOUNT})")
 
 # 🚨 A BAND WITHOUT A DOLLAR SIGN IS STILL A BAND. Businessolver, read on 2026-09-19:
 # "The pay range for this position is 67K to 105K per year". The posting was carried as
@@ -266,7 +270,7 @@ _RANGE = re.compile(rf"({_AMOUNT})\s*(?:-|–|—|to|and)\s*({_AMOUNT})")
 # inside a sentence that already mentions pay. Both guards are needed: one real posting
 # says "$100 billion in charitable giving" and "a $140 million growth investment" in prose.
 _BARE = r"\d{2,3}\s?[Kk]\b|\d{2,3},\d{3}\b"
-_BARE_RANGE = re.compile(rf"({_BARE})\s*(?:-|–|—|to|and)\s*({_BARE})")
+_BARE_RANGE = re.compile(rf"({_BARE}){_UNIT}\s*(?:-|–|—|to|and)\s*({_BARE})")
 _SINGLE = re.compile(
     rf"({_AMOUNT}|{_BARE})\s*(?:per year|per annum|annually|annualized|/\s?yr|a year)"
     rf"|(?:salary|base pay|pay|compensation)\s*(?:is|of|:)\s*({_AMOUNT}|{_BARE})", re.I)
